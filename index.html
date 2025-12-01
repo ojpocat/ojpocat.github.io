@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Map of London</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.17.0-beta.1/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.17.0-beta.1/mapbox-gl.js"></script>
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+.marker {
+  border-radius: 50%;
+  background-size: cover;
+  cursor: pointer;
+}
+
+#legend {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  font-family: system-ui, sans-serif;
+  z-index: 1;
+}
+
+#legend h4 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.legend-item img {
+  width: 28px;
+  height: 28px;
+  margin-right: 10px;
+}
+
+/* Button top-left */
+  #animation-controls {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    font-family: system-ui, sans-serif;
+  }
+
+  #start-animation {
+    font-family: system-ui, sans-serif; /* match legend font */
+    font-size: 18px;   /* make button bigger */
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: white;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  /* Date centered at top */
+  #visit-date {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    font-family: system-ui, sans-serif; /* match legend font */
+    font-size: 20px;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="legend">
+  <h4>Categories</h4>
+</div>
+
+</div>
+<div id="animation-controls">
+  <button id="start-animation">Start Animation</button>
+</div>
+
+<!-- Date centered -->
+<div id="visit-date"></div>
+</div>
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZGlzc3RvY2tob2xtIiwiYSI6ImNsYXB4ZDBsODFjeGYzcHF2bDd5dmtuajQifQ.aqSUxGoF8DkpeJyEx3diOg';
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/disstockholm/cmij3q90p00ey01r07nkg9b3n',
+        zoom: 11.9,
+        center: [-0.128070, 51.52],
+    });
+
+    const categories = [
+  { label: 'Attractions', icon: 'attraction' },
+  { label: 'Restaurants', icon: 'restaurant' },
+  { label: 'Parks', icon: 'park' },
+  { label: 'Nightlife', icon: 'nightlife' }
+];
+
+const lineSegments = [];
+
+    map.on('load', () => {
+
+//-----TRIP LINE ANIMATION-----//
+const tripCoordinates = [
+  [-0.1246, 51.5007],       // Big Ben
+  [-0.1419, 51.5014],       // Buckingham Palace
+  [-0.189296, 51.500554],   // Grato
+  [-0.172180, 51.496639],   // V&A Museum
+  [-0.128034, 51.509388],   // National Portrait Gallery
+  [-0.115287, 51.512124],   // Toklas
+  [-0.122772, 51.515432],   // Top Secret Comedy Club
+  [-0.091, 51.5055],        // Borough Market
+  [-0.173657, 51.495025],   // Lina Stores South Kensington
+  [-0.0797, 51.5246],       // Queen of Hoxton
+  [-0.1576, 51.5566],       // Parliament Hill
+  [-0.131487, 51.511998],   // Rasa Sayang Restaurant
+  [-0.183598, 51.498109],   // Coco Momo
+  [-0.1657, 51.5073],       // Hyde Park
+  [-0.166235, 51.488729],   // Rabbit British Bistro
+  [-0.192997, 51.492731],   // Mali Vegan Thai
+  [-0.178146, 51.500424],   // Imperial Union
+];
+
+const visitDates = [
+    "2025-10-03", "2025-10-03", "2025-10-03", "2025-10-04",
+    "2025-10-04", "2025-10-04", "2025-10-04",
+    "2025-10-05", "2025-10-05", "2025-10-05",
+    "2025-10-06", "2025-10-06", "2025-10-07",
+    "2025-10-07", "2025-10-07", "2025-10-08", "2025-10-08"
+];
+
+const dateColors = {
+  "2025-10-03": "#ff0000", // red
+  "2025-10-04": "#00ff00", // green
+  "2025-10-05": "#0000ff", // blue
+  "2025-10-06": "#ffa500", // orange
+  "2025-10-07": "#800080", // purple
+  "2025-10-08": "#00ffff", // cyan
+};
+
+// Create empty GeoJSON source
+map.addSource('trip-line', {
+  type: 'geojson',
+  data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } }
+});
+
+// Add line layer
+map.addLayer({
+  id: 'trip-line-layer',
+  type: 'line',
+  source: 'trip-line',
+  layout: { 'line-join': 'round', 'line-cap': 'round' },
+  paint: { 'line-color': '#ff0000', 'line-width': 4, 'line-opacity': 0.7 }
+});
+
+function animateTripLineWithDates() {
+  const lineData = { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } };
+  const dateDisplay = document.getElementById('visit-date');
+  let currentIndex = 0;
+  let progress = 0;
+  const speed = 0.01;
+
+  function step() {
+    if (currentIndex >= tripCoordinates.length - 1) {
+      // Fade out line when done
+      let opacity = map.getPaintProperty('trip-line-layer', 'line-opacity');
+      const fade = setInterval(() => {
+        opacity -= 0.01;
+        if (opacity <= 0) {
+          clearInterval(fade);
+          map.setPaintProperty('trip-line-layer', 'line-opacity', 0);
+          lineData.geometry.coordinates = [];
+          map.getSource('trip-line').setData(lineData);
+        } else {
+          map.setPaintProperty('trip-line-layer', 'line-opacity', opacity);
+        }
+      }, 30);
+      return;
+    }
+
+    const start = tripCoordinates[currentIndex];
+    const end = tripCoordinates[currentIndex + 1];
+
+    // Interpolate point
+    const nextPoint = [
+      start[0] + (end[0] - start[0]) * progress,
+      start[1] + (end[1] - start[1]) * progress
+    ];
+
+    lineData.geometry.coordinates.push(nextPoint);
+    map.getSource('trip-line').setData(lineData);
+
+    // Update date and line color when moving to next point
+    if (progress >= 1) {
+      currentIndex++;
+      progress = 0;
+      const currentDate = visitDates[currentIndex] || "";
+      dateDisplay.textContent = currentDate;
+      if (currentDate && dateColors[currentDate]) {
+        map.setPaintProperty('trip-line-layer', 'line-color', dateColors[currentDate]);
+      }
+    } else {
+      progress += speed;
+    }
+
+    requestAnimationFrame(step);
+  }
+
+  // Initialize first date
+  dateDisplay.textContent = visitDates[0];
+  map.setPaintProperty('trip-line-layer', 'line-color', dateColors[visitDates[0]]);
+  lineData.geometry.coordinates = [];
+  map.getSource('trip-line').setData(lineData);
+
+  step();
+}
+
+document.getElementById('start-animation').addEventListener('click', animateTripLineWithDates);
+
+//------ICONS-----//
+// Define category icons (same as legend)
+const categories = [
+  { label: 'Attractions', icon: 'attraction', png: 'icons/attraction.png' },
+  { label: 'Restaurants', icon: 'restaurant', png: 'icons/restaurant.png' },
+  { label: 'Parks', icon: 'park', png: 'icons/park.png' },
+  { label: 'Nightlife', icon: 'nightlife', png: 'icons/nightlife.png' }
+];
+
+    const legend = document.getElementById('legend');
+
+categories.forEach(item => {
+  const row = document.createElement('div');
+  row.className = 'legend-item';
+
+  const icon = document.createElement('img');
+  icon.src = `icons/${item.icon}.png`;  // <-- uses your local icons folder
+
+  const label = document.createElement('span');
+  label.textContent = item.label;
+
+  row.appendChild(icon);
+  row.appendChild(label);
+  legend.appendChild(row);
+});
+
+        map.addSource('places', {
+    type: 'geojson',
+    data: geojson
+  });
+  
+
+  const popup = new mapboxgl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+    offset: 18
+  });
+
+  map.on('mouseenter', 'places-layer', (e) => {
+    map.getCanvas().style.cursor = 'pointer';
+
+    const feature = e.features[0];
+    const { name, category } = feature.properties;
+
+    const safeName = name.replace(/\s+/g, '_'); 
+    const imagePath = `image/${safeName}.jpeg`;
+
+    popup
+  .setLngLat(feature.geometry.coordinates)
+  .setHTML(`
+    <div style="max-width:220px">
+      <img src="${imagePath}" style="width:100%;border-radius:8px;margin-bottom:6px" />
+      <strong>${name}</strong><br/>
+      <small>${category}</small>
+    </div>
+  `)
+  .addTo(map);
+  });
+
+  map.on('mouseleave', 'places-layer', () => {
+    map.getCanvas().style.cursor = '';
+    popup.remove();
+  });
+
+  });     
+
+</script>
+</body>
+</html>
