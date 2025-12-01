@@ -115,9 +115,6 @@ body { margin: 0; padding: 0; }
 
 const lineSegments = [];
 
-const lineLayersByDate = {};
-
-
     map.on('load', () => {
 
 //-----TRIP LINE ANIMATION-----//
@@ -158,42 +155,20 @@ const dateColors = {
   "2025-10-08": "#00ffff", // cyan
 };
 
-visitDates.forEach(date => {
-  map.addSource(`trip-${date}`, {
-    type: 'geojson',
-    data: {
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates: []
-      }
-    }
-  });
-
-  map.addLayer({
-    id: `trip-line-${date}`,
-    type: 'line',
-    source: `trip-${date}`,
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: {
-      'line-color': dateColors[date],
-      'line-width': 4,
-      'line-opacity': 0.7
-    }
-  });
-
-  lineLayersByDate[date] = {
-    source: `trip-${date}`,
-    data: {
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates: []
-      }
-    }
-  };
+// Create empty GeoJSON source
+map.addSource('trip-line', {
+  type: 'geojson',
+  data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } }
 });
 
+// Add line layer
+map.addLayer({
+  id: 'trip-line-layer',
+  type: 'line',
+  source: 'trip-line',
+  layout: { 'line-join': 'round', 'line-cap': 'round' },
+  paint: { 'line-color': '#ff0000', 'line-width': 4, 'line-opacity': 0.7 }
+});
 
 function animateTripLineWithDates() {
   const lineData = { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } };
@@ -211,10 +186,8 @@ function animateTripLineWithDates() {
         if (opacity <= 0) {
           clearInterval(fade);
           map.setPaintProperty('trip-line-layer', 'line-opacity', 0);
-          const currentDate = visitDates[currentIndex];
-          const segment = lineLayersByDate[currentDate];
-          segment.data.geometry.coordinates.push(nextPoint);
-          map.getSource(segment.source).setData(segment.data);
+          lineData.geometry.coordinates = [];
+          map.getSource('trip-line').setData(lineData);
         } else {
           map.setPaintProperty('trip-line-layer', 'line-opacity', opacity);
         }
@@ -240,6 +213,9 @@ function animateTripLineWithDates() {
       progress = 0;
       const currentDate = visitDates[currentIndex] || "";
       dateDisplay.textContent = currentDate;
+      if (currentDate && dateColors[currentDate]) {
+        map.setPaintProperty('trip-line-layer', 'line-color', dateColors[currentDate]);
+      }
     } else {
       progress += speed;
     }
